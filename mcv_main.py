@@ -17,15 +17,18 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- 環境変数 ---
+# --- 環境変数 (Secretsから取得) ---
 USER_ID = os.environ["USER_ID"]
 PASSWORD = os.environ["USER_PASS"]
 json_creds = json.loads(os.environ["GCP_JSON"])
 
-# --- 設定 ---
-TARGET_URL = "https://asp1.six-pack.xyz/admin/log/click/list"
-DRIVE_FOLDER_ID = "1R49uIPjJ0amEr2He4qQTZ1Z1rQy7nTHf"
-SPREADSHEET_ID = "1xzIbMw-YqGn7_KG-xJ_vpWK3MYQY9Zbnm6THTkcZtdM" # 転記先スプレッドシートID
+# --- 個別設定 (Secretsから取得) ---
+TARGET_URL = os.environ["TARGET_URL"]           # ログイン先URL
+DRIVE_FOLDER_ID = os.environ["DRIVE_FOLDER_ID"] # Google DriveフォルダID
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]   # スプレッドシートID
+PARTNER_NAME = os.environ["PARTNER_NAME"]       # 検索する会社名
+
+# --- 固定設定 ---
 SHEET_NAME = "raw_cv_当日" # 転記先シート名
 
 def get_google_service(service_name, version):
@@ -97,7 +100,6 @@ def update_google_sheet(csv_path):
         print("既存データをクリアしました。")
     except Exception as e:
         print(f"シートクリアエラー(シートが存在しない可能性があります): {e}")
-        # シートがない場合は新規作成などの処理が必要ですが、今回はエラーログのみ
 
     # 3. データの書き込み
     body = {
@@ -116,7 +118,6 @@ def get_today_jst():
     """日本時間の【当日】を計算して文字列(YYYY年MM月DD日)で返す"""
     JST = timezone(timedelta(hours=+9), 'JST')
     now = datetime.now(JST)
-    # yesterday = now - timedelta(days=1) # 前日取得ロジックを削除
     return now.strftime("%Y年%m月%d日")
 
 def main():
@@ -203,10 +204,11 @@ def main():
             time.sleep(1)
             
             active_elem = driver.switch_to.active_element
-            active_elem.send_keys("株式会社フルアウト")
+            # 変数化した会社名を使用
+            active_elem.send_keys(PARTNER_NAME)
             time.sleep(3)
             active_elem.send_keys(Keys.ENTER)
-            print("パートナーを選択しました")
+            print(f"パートナー({PARTNER_NAME})を選択しました")
             time.sleep(2)
 
         except Exception as e:
