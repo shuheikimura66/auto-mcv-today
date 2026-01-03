@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+# MediaFileUpload のインポートは不要になったため削除
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -24,7 +24,7 @@ json_creds = json.loads(os.environ["GCP_JSON"])
 
 # --- 個別設定 (Secretsから取得) ---
 TARGET_URL = os.environ["TARGET_URL"]           # ログイン先URL
-DRIVE_FOLDER_ID = os.environ["DRIVE_FOLDER_ID"] # Google DriveフォルダID
+# DRIVE_FOLDER_ID は削除しました
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]   # スプレッドシートID
 PARTNER_NAME = os.environ["PARTNER_NAME"]       # 検索する会社名
 
@@ -33,36 +33,14 @@ SHEET_NAME = "raw_cv_当日" # 転記先シート名
 
 def get_google_service(service_name, version):
     """Google APIサービスを取得するヘルパー関数"""
-    # DriveとSheets両方の権限を設定
+    # Driveへのアップロードが無いため、スコープをSheetsのみに限定
     scopes = [
-        'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/spreadsheets'
     ]
     creds = Credentials.from_service_account_info(json_creds, scopes=scopes)
     return build(service_name, version, credentials=creds)
 
-def upload_to_drive(file_path):
-    """Google DriveにCSVファイルをアップロードする関数"""
-    print(f"ドライブへのアップロードを開始: {file_path}")
-    service = get_google_service('drive', 'v3')
-
-    file_name = os.path.basename(file_path)
-    
-    file_metadata = {
-        'name': file_name,
-        'parents': [DRIVE_FOLDER_ID]
-    }
-    media = MediaFileUpload(file_path, mimetype='text/csv')
-
-    # 共有ドライブ対応 (supportsAllDrives=True)
-    file = service.files().create(
-        body=file_metadata, 
-        media_body=media, 
-        fields='id', 
-        supportsAllDrives=True
-    ).execute()
-    
-    print(f"アップロード完了 File ID: {file.get('id')}")
+# upload_to_drive 関数は削除しました
 
 def update_google_sheet(csv_path):
     """CSVの中身を読み込んでスプレッドシートに張り付ける関数"""
@@ -105,14 +83,16 @@ def update_google_sheet(csv_path):
     body = {
         'values': csv_data
     }
-    result = service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"{SHEET_NAME}!A1",
-        valueInputOption='USER_ENTERED',
-        body=body
-    ).execute()
-
-    print(f"スプレッドシート更新完了: {result.get('updatedCells')} セル更新")
+    try:
+        result = service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{SHEET_NAME}!A1",
+            valueInputOption='USER_ENTERED',
+            body=body
+        ).execute()
+        print(f"スプレッドシート更新完了: {result.get('updatedCells')} セル更新")
+    except Exception as e:
+        print(f"書き込みエラー: {e}")
 
 def get_today_jst():
     """日本時間の【当日】を計算して文字列(YYYY年MM月DD日)で返す"""
@@ -171,16 +151,13 @@ def main():
 
         # --- 3. 日付入力（当日） ---
         try:
-            # 日本時間の「当日」を取得
             today_str = get_today_jst()
             date_range_str = f"{today_str} - {today_str}"
             print(f"日付範囲を指定します: {date_range_str}")
             
-            # 日付入力欄を探す
             date_label = wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'クリック日時')]")))
             date_input = date_label.find_element(By.XPATH, "./following::input[1]")
             
-            # JSでクリア＆入力
             driver.execute_script("arguments[0].click();", date_input)
             driver.execute_script("arguments[0].value = '';", date_input)
             time.sleep(0.5)
@@ -204,7 +181,6 @@ def main():
             time.sleep(1)
             
             active_elem = driver.switch_to.active_element
-            # 変数化した会社名を使用
             active_elem.send_keys(PARTNER_NAME)
             time.sleep(3)
             active_elem.send_keys(Keys.ENTER)
@@ -265,10 +241,9 @@ def main():
 
         # --- 8. データの保存処理 ---
         
-        # 1. Google Driveへアップロード (元の機能も維持)
-        upload_to_drive(csv_file_path)
+        # Google Driveへのアップロード処理を削除しました
 
-        # 2. Google SpreadSheetへ転記 (追加機能)
+        # 2. Google SpreadSheetへ転記
         update_google_sheet(csv_file_path)
 
     except Exception as e:
