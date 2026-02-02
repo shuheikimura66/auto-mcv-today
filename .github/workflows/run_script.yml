@@ -4,6 +4,11 @@ on:
   # 手動または外部トリガーのみ
   workflow_dispatch:
 
+# ▼ 追加: 同じワークフローが重複して実行されないようにする設定
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   run-mcv-scraper:
     runs-on: ubuntu-latest
@@ -34,6 +39,5 @@ jobs:
           GCP_JSON: ${{ secrets.GCP_JSON }}
           TARGET_URL: ${{ secrets.TARGET_URL }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-          # DRIVE_FOLDER_ID は削除しました
           PARTNER_NAME: ${{ secrets.PARTNER_NAME }}
         run: python mcv_main.py
